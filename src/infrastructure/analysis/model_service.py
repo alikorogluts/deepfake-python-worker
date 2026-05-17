@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 import base64
 import logging
 
@@ -22,7 +23,11 @@ class ModelService(IModelService):
     PyTorch + timm SwinV2 deepfake detection service
     """
 
-    MODEL_PATH = "models/best_swinv2.pth"
+    MODEL_PATH = os.getenv(
+        "MODEL_PATH",
+        "models/best_swinv2.pth"
+    )
+
     MODEL_NAME = "swinv2_tiny_window16_256.ms_in1k"
 
     def __init__(self) -> None:
@@ -78,14 +83,12 @@ class ModelService(IModelService):
             output = self.model(img_tensor)
             probs = torch.softmax(output, dim=1)[0]
 
-        # Senin dataset:
         # probs[0] = REAL
         # probs[1] = FAKE
         fake_score = float(probs[1].item())
 
         is_deepfake = fake_score >= 0.5
 
-        # Heatmap overlay
         gradcam_b64 = self._simple_overlay(
             pil_image,
             fake_score
@@ -97,16 +100,11 @@ class ModelService(IModelService):
             gradcam_b64=gradcam_b64,
         )
 
-    # ─────────────────────────────────────────────
-
     @staticmethod
     def _simple_overlay(
         pil_image: Image.Image,
         score: float
     ) -> str:
-        """
-        Fake skoruna göre basit kırmızı/yeşil overlay
-        """
 
         img = pil_image.resize(
             (224, 224),
@@ -122,10 +120,7 @@ class ModelService(IModelService):
 
         overlay = np.zeros_like(img_bgr)
 
-        # Red
         overlay[:, :, 2] = intensity
-
-        # Green
         overlay[:, :, 1] = 255 - intensity
 
         result = cv2.addWeighted(
