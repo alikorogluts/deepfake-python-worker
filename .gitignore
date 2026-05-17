@@ -15,3 +15,8 @@ venv/
 
 # Docker
 *.log
+.DS_Store
+models/
+*.pth
+__pycache__/
+*.pyc
