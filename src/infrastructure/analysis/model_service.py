@@ -10,7 +10,8 @@ import timm
 import torch
 import numpy as np
 from PIL import Image
-from torchvision import transforms
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 from src.domain.entities.analysis_result import ModelMetrics
 from src.domain.interfaces import IModelService
@@ -57,13 +58,13 @@ class ModelService(IModelService):
         self.model.eval()
 
         # Transform
-        self.transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                [0.485, 0.456, 0.406],
-                [0.229, 0.224, 0.225]
-            )
+        self.val_tf = A.Compose([
+            A.Resize(256, 256),
+            A.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            ),
+            ToTensorV2()
         ])
 
         log.info("✔ SwinV2 model hazır")
@@ -75,17 +76,16 @@ class ModelService(IModelService):
         ).convert("RGB")
 
         # Preprocess
-        img_tensor = self.transform(pil_image)
-        img_tensor = img_tensor.unsqueeze(0).to(self.device)
+        img_np = np.array(pil_image)
+        img_tensor = self.val_tf(image=img_np)["image"].unsqueeze(0).to(self.device)
 
         # Predict
         with torch.no_grad():
             output = self.model(img_tensor)
             probs = torch.softmax(output, dim=1)[0]
 
-        # probs[0] = REAL
-        # probs[1] = FAKE
-        fake_score = float(probs[1].item())
+        # Alfabetik sıra: FAKE=0, REAL=1
+        fake_score = float(probs[0].item())
 
         is_deepfake = fake_score >= 0.5
 
