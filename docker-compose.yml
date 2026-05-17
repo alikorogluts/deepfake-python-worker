@@ -50,30 +50,19 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-admin123}
       ANALYSIS_QUEUE: analysis_queue
-      RESULT_QUEUE:   result_queue
+      RESULT_QUEUE: result_queue
       WORKER_THREADS: ${WORKER_THREADS:-4}
+    volumes:
+      - ./models:/app/models:ro
     env_file:
       - path: .env
-        required: false         # .env yoksa hata verme, env var'ları kullan
+        required: false
     depends_on:
       rabbitmq:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
     restart: unless-stopped
     networks:
       - deepfake-net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   # ── 3. .NET API (hazır olunca yorumu kaldırın) ────────────────
   # dotnet-api:

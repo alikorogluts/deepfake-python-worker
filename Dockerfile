@@ -2,25 +2,28 @@
 # DeepFake Python Worker – Dockerfile
 # ══════════════════════════════════════════════════════════════════
 
-# ── Stage 1: Builder ──────────────────────────────────────────────
 FROM python:3.11-slim AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
     libglib2.0-0 \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+
 RUN pip install --upgrade pip \
- && pip install --prefix=/install --no-cache-dir -r requirements.txt
+    && pip install --prefix=/install --no-cache-dir -r requirements.txt
 
 
-# ── Stage 2: Runtime ──────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 LABEL maintainer="alikoroglu <https://github.com/alikorogluts>"
 LABEL description="DeepFake Detection – RabbitMQ Async Worker"
@@ -35,19 +38,11 @@ COPY --from=builder /install /usr/local
 
 WORKDIR /app
 
-# ── YENİ: HuggingFace cache klasörü ──────────────────────────────
-ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
-ENV HF_HOME=/app/.cache/huggingface
-RUN mkdir -p /app/.cache
-# ─────────────────────────────────────────────────────────────────
-
 COPY src/ ./src/
 
-RUN useradd --no-create-home --shell /bin/false worker
-
-# ── YENİ: cache klasörü worker'a ver ─────────────────────────────
-RUN chown -R worker:worker /app/.cache
-# ─────────────────────────────────────────────────────────────────
+RUN mkdir -p /app/models \
+    && useradd --no-create-home --shell /bin/false worker \
+    && chown -R worker:worker /app
 
 USER worker
 
@@ -64,4 +59,3 @@ s = socket.create_connection(\
 ); s.close(); print('OK')"
 
 CMD ["python", "-m", "src.worker.main"]
-
